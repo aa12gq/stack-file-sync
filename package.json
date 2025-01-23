@@ -3,23 +3,38 @@
   "displayName": "Stack File Sync",
   "description": "同步不同代码仓库之间的文件",
   "icon": "icon.png",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/aa12gq/stack-file-sync.git"
   },
   "publisher": "aa12gq",
+  "keywords": [
+    "sync",
+    "file sync",
+    "git sync",
+    "proto sync",
+    "stack sync",
+    "文件同步",
+    "代码同步"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "SCM Providers",
+    "Formatters"
   ],
   "activationEvents": [
     "onCommand:stack-file-sync.syncFiles",
     "onCommand:stack-file-sync.configureSync"
   ],
   "main": "./out/extension.js",
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
   "contributes": {
     "commands": [
       {
