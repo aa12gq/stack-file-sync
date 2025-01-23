@@ -1,5 +1,7 @@
 # Stack File Sync
 
+[English](README_EN.md) | 简体中文
+
 VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git 仓库同步文件到指定目录，并提供文件备份功能。
 
 ## 功能特点
