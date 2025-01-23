@@ -3,6 +3,11 @@
   "displayName": "Stack File Sync",
   "description": "同步不同代码仓库之间的文件",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/stack-file-sync.git"
+  },
+  "publisher": "yourusername",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -13,20 +18,34 @@
     "onCommand:stack-file-sync.syncFiles",
     "onCommand:stack-file-sync.configureSync"
   ],
-  "main": "./dist/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "stack-file-sync.syncFiles",
-        "title": "同步文件",
+        "title": "同步文件 (默认快捷键: Ctrl/Cmd+Alt+S)",
         "category": "Stack File Sync",
         "icon": "$(sync)"
       },
       {
         "command": "stack-file-sync.configureSync",
-        "title": "配置同步",
+        "title": "配置同步 (默认快捷键: Ctrl/Cmd+Alt+,)",
         "category": "Stack File Sync",
         "icon": "$(gear)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "stack-file-sync.syncFiles",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "workspaceFolderCount > 0"
+      },
+      {
+        "command": "stack-file-sync.configureSync",
+        "key": "ctrl+alt+,",
+        "mac": "cmd+alt+,",
+        "when": "workspaceFolderCount > 0"
       }
     ],
     "configuration": {
@@ -55,6 +74,11 @@
               "branch": {
                 "type": "string",
                 "description": "分支名称"
+              },
+              "sourceDirectory": {
+                "type": "string",
+                "description": "要同步的源目录（相对于仓库根目录）",
+                "default": "proto"
               }
             }
           }
@@ -88,10 +112,51 @@
           "type": "boolean",
           "default": true,
           "description": "是否在同步前备份文件"
+        },
+        "stackFileSync.postSyncCommands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "directory",
+              "command"
+            ],
+            "properties": {
+              "directory": {
+                "type": "string",
+                "description": "执行命令的目录（相对于工作区根目录）"
+              },
+              "command": {
+                "type": "string",
+                "description": "要执行的命令"
+              }
+            }
+          },
+          "default": [],
+          "description": "同步完成后要执行的命令列表"
         }
       }
     },
     "menus": {
+      "editor/title": [
+        {
+          "command": "stack-file-sync.syncFiles",
+          "group": "navigation",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "stack-file-sync.syncFiles",
+          "group": "2_workspace",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "stack-file-sync.configureSync",
+          "group": "2_workspace",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
       "commandPalette": [
         {
           "command": "stack-file-sync.syncFiles",
@@ -106,7 +171,7 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
     "watch": "pnpm run compile -- --watch",
     "lint": "eslint src --ext ts"
   },
@@ -115,7 +180,7 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
-    "esbuild": "^0.19.11",
+    "esbuild": "^0.19.12",
     "eslint": "^8.56.0",
     "typescript": "^5.3.3"
   },

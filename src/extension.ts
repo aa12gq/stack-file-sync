@@ -3,13 +3,14 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import simpleGit from "simple-git";
+import { simpleGit } from "simple-git";
 import * as os from "os";
 
 interface Repository {
   name: string;
   url: string;
   branch: string;
+  sourceDirectory: string;
 }
 
 // This method is called when your extension is activated
@@ -129,21 +130,55 @@ export function activate(context: vscode.ExtensionContext) {
 
               // 设置 sparse-checkout
               await git.raw(["sparse-checkout", "init", "--cone"]);
-              await git.raw(["sparse-checkout", "set", "proto"]);
+              // 确保能获取到所有层级的目录
+              const sourceDirParts =
+                selectedRepo.repo.sourceDirectory.split("/");
+              const sourceDirPaths = sourceDirParts.reduce(
+                (paths, _, index) => {
+                  paths.push(sourceDirParts.slice(0, index + 1).join("/"));
+                  return paths;
+                },
+                [] as string[]
+              );
+
+              outputChannel.appendLine(
+                `设置 sparse-checkout 路径: ${sourceDirPaths.join(", ")}`
+              );
+
+              await git.raw(["sparse-checkout", "set", ...sourceDirPaths]);
             }
           );
 
           // 搜索文件
           const allFiles: vscode.Uri[] = [];
+          outputChannel.appendLine(
+            `开始在目录 ${path.join(
+              tempDir,
+              selectedRepo.repo.sourceDirectory
+            )} 中搜索文件...`
+          );
+          outputChannel.appendLine(`文件模式: ${filePatterns.join(", ")}`);
+          outputChannel.appendLine(`排除模式: ${excludePatterns.join(", ")}`);
+
           for (const pattern of filePatterns) {
             try {
               const files = await vscode.workspace.findFiles(
                 new vscode.RelativePattern(
-                  vscode.Uri.file(path.join(tempDir, "proto")),
+                  vscode.Uri.file(
+                    path.join(tempDir, selectedRepo.repo.sourceDirectory)
+                  ),
                   pattern
                 ),
                 `{${excludePatterns.join(",")}}`
               );
+              outputChannel.appendLine(
+                `模式 ${pattern} 找到 ${files.length} 个文件`
+              );
+              if (files.length > 0) {
+                outputChannel.appendLine(
+                  `文件列表: ${files.map((f) => f.fsPath).join("\n")}`
+                );
+              }
               allFiles.push(...files);
             } catch (error) {
               outputChannel.appendLine(
@@ -155,8 +190,25 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
           if (!allFiles.length) {
+            // 检查目录是否存在
+            const searchDir = path.join(
+              tempDir,
+              selectedRepo.repo.sourceDirectory
+            );
+            outputChannel.appendLine(
+              `搜索目录 ${searchDir} ${
+                fs.existsSync(searchDir) ? "存在" : "不存在"
+              }`
+            );
+            if (fs.existsSync(searchDir)) {
+              outputChannel.appendLine(
+                `目录内容: ${fs.readdirSync(searchDir).join(", ")}`
+              );
+            }
             throw new Error(
-              `没有找到匹配的文件 (搜索模式: ${filePatterns.join(", ")})`
+              `没有找到匹配的文件\n搜索目录: ${searchDir}\n文件模式: ${filePatterns.join(
+                ", "
+              )}\n排除模式: ${excludePatterns.join(", ")}`
             );
           }
 
@@ -170,7 +222,10 @@ export function activate(context: vscode.ExtensionContext) {
           const selectedFiles = await vscode.window.showQuickPick(
             uniqueFiles.map((filePath) => ({
               label: path.basename(filePath),
-              description: path.relative(path.join(tempDir, "proto"), filePath),
+              description: path.relative(
+                path.join(tempDir, selectedRepo.repo.sourceDirectory),
+                filePath
+              ),
               detail: filePath, // 显示完整路径
               fsPath: filePath,
             })),
@@ -211,7 +266,7 @@ export function activate(context: vscode.ExtensionContext) {
           // 复制文件
           for (const file of selectedFiles) {
             const relPath = path.relative(
-              path.join(tempDir, "proto"),
+              path.join(tempDir, selectedRepo.repo.sourceDirectory),
               file.fsPath
             );
             const targetPath = path.join(normalizedTargetDir, relPath);
