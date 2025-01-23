@@ -54,62 +54,54 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
 
 ### 仓库配置 (`stackFileSync.repositories`)
 
+每个仓库可以有自己独立的配置：
+
 ```json
 {
   "stackFileSync.repositories": [
     {
-      "name": "主服务",
-      "url": "git@github.com:example/main-service.git",
-      "branch": "main",
-      "sourceDirectory": "proto/user"
-    },
-    {
       "name": "用户服务",
       "url": "git@github.com:example/user-service.git",
+      "branch": "main",
+      "sourceDirectory": "proto/user",
+      "targetDirectory": "lib/common/net/grpcs/proto/user",
+      "filePatterns": ["**/*.proto"],
+      "excludePatterns": ["**/backend/**"],
+      "postSyncCommands": [
+        {
+          "directory": "lib/common/net/grpcs/proto/user",
+          "command": "protoc --dart_out=grpc:../generated *.proto"
+        }
+      ]
+    },
+    {
+      "name": "订单服务",
+      "url": "git@github.com:example/order-service.git",
       "branch": "develop",
-      "sourceDirectory": "proto/auth"
+      "sourceDirectory": "src/protos",
+      "targetDirectory": "lib/common/net/grpcs/proto/order",
+      "filePatterns": ["**/*.proto", "**/*.thrift"],
+      "postSyncCommands": [
+        {
+          "directory": "lib/common/net/grpcs/proto/order",
+          "command": "protoc --go_out=. *.proto"
+        }
+      ]
     }
   ]
 }
 ```
 
+配置项说明：
+
 - `name`: 仓库名称，用于显示在选择列表中
 - `url`: Git 仓库地址，支持 HTTPS 和 SSH 格式
 - `branch`: 要同步的分支名称
-- `sourceDirectory`: 指定要同步的源目录，相对于仓库根目录的路径
-
-### 文件模式 (`stackFileSync.filePatterns`)
-
-```json
-{
-  "stackFileSync.filePatterns": ["**/*.proto", "**/*.thrift"]
-}
-```
-
-支持 glob 模式，例如：
-
-- `**/*.proto`: 匹配所有 .proto 文件
-- `user/**/*.proto`: 只匹配 user 目录下的 .proto 文件
-
-### 排除模式 (`stackFileSync.excludePatterns`)
-
-```json
-{
-  "stackFileSync.excludePatterns": ["**/backend/**", "**/test/**"]
-}
-```
-
-用于排除不需要同步的文件或目录。
-
-### 目标目录 (`stackFileSync.targetDirectory`)
-
-```json
-{
-  "stackFileSync.targetDirectory": "lib/common/net/grpcs/proto"
-}
-```
-
-指定文件同步的目标目录，支持相对路径和绝对路径。
+- `sourceDirectory`: 要同步的源目录（相对于仓库根目录）
+- `targetDirectory`: 同步文件的目标目录（支持相对或绝对路径）
+- `filePatterns`: 要同步的文件模式（支持 glob 模式）
+- `excludePatterns`: 要排除的文件模式（支持 glob 模式）
+- `postSyncCommands`: 同步完成后要执行的命令列表
 
 ### 备份设置 (`stackFileSync.backupEnabled`)
 
@@ -121,56 +113,51 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
 
 是否在同步前自动备份原文件。
 
-### 后处理命令 (`stackFileSync.postSyncCommands`)
+## 使用示例
 
-```json
-{
-  "stackFileSync.postSyncCommands": [
-    {
-      "directory": "lib/common/net/grpcs/proto",
-      "command": "protoc --dart_out=grpc:../generated *.proto"
-    },
-    {
-      "directory": "lib/common/net/thrifts",
-      "command": "thrift --gen dart *.thrift"
-    }
-  ]
-}
-```
-
-用于配置同步完成后要执行的命令：
-
-- `directory`: 执行命令的目录（相对于工作区根目录）
-- `command`: 要执行的命令
-
-支持配置多个命令，会按顺序执行。
-
-## 完整配置示例
+### 同步 Proto 文件
 
 ```json
 {
   "stackFileSync.repositories": [
     {
-      "name": "主服务",
-      "url": "git@github.com:example/main-service.git",
-      "branch": "main",
-      "sourceDirectory": "proto/user"
-    },
-    {
       "name": "用户服务",
       "url": "git@github.com:example/user-service.git",
-      "branch": "develop",
-      "sourceDirectory": "proto/auth"
+      "branch": "main",
+      "sourceDirectory": "proto/user",
+      "targetDirectory": "lib/common/net/grpcs/proto/user",
+      "filePatterns": ["**/*.proto"],
+      "excludePatterns": ["**/backend/**"],
+      "postSyncCommands": [
+        {
+          "directory": "lib/common/net/grpcs/proto/user",
+          "command": "protoc --dart_out=grpc:../generated *.proto"
+        }
+      ]
     }
-  ],
-  "stackFileSync.filePatterns": ["**/*.proto", "**/*.thrift"],
-  "stackFileSync.excludePatterns": ["**/backend/**", "**/test/**"],
-  "stackFileSync.targetDirectory": "lib/common/net/grpcs/proto",
-  "stackFileSync.backupEnabled": true,
-  "stackFileSync.postSyncCommands": [
+  ]
+}
+```
+
+### 同步多种类型文件
+
+```json
+{
+  "stackFileSync.repositories": [
     {
-      "directory": "lib/common/net/grpcs/proto",
-      "command": "protoc --dart_out=grpc:../generated *.proto"
+      "name": "API 定义",
+      "url": "git@github.com:example/api-definitions.git",
+      "branch": "main",
+      "sourceDirectory": "definitions",
+      "targetDirectory": "api/specs",
+      "filePatterns": ["**/*.proto", "**/*.thrift", "**/*.swagger.json"],
+      "excludePatterns": ["**/tests/**", "**/examples/**"],
+      "postSyncCommands": [
+        {
+          "directory": "api/specs",
+          "command": "make generate-all"
+        }
+      ]
     }
   ]
 }
