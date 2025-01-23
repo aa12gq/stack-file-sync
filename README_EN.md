@@ -12,6 +12,7 @@ A VSCode extension for synchronizing files between different code repositories. 
 - Automatic file backup before syncing
 - Configurable target sync directory
 - Support post-sync processing (e.g., proto file compilation)
+- Support automatic synchronization with configurable intervals
 
 ## Usage
 
@@ -22,6 +23,20 @@ Multiple ways to open settings:
 - Use shortcut `Ctrl/Cmd + Alt + ,`
 - Type "Stack File Sync: Configure Sync" in command palette
 - Right-click in explorer and select "Configure Sync"
+
+### 2. Auto Sync Settings
+
+You can configure automatic synchronization through:
+
+1. Click the "Stack File Sync" icon in the left activity bar
+2. Right-click on the repository you want to auto-sync in the repository list
+3. Select "Enable Auto Sync" or "Disable Auto Sync"
+
+After enabling auto sync:
+
+- The repository icon will turn blue to indicate auto sync is enabled
+- The sync interval will be displayed after the repository name
+- The plugin will automatically check and sync updates according to the set interval
 
 ### 2. Select Repository
 
@@ -75,6 +90,10 @@ Each repository can have its own configuration:
       "targetDirectory": "lib/common/net/grpcs/proto/user",
       "filePatterns": ["**/*.proto"],
       "excludePatterns": ["**/backend/**"],
+      "autoSync": {
+        "enabled": true,
+        "interval": 300
+      },
       "postSyncCommands": [
         {
           "directory": "lib/common/net/grpcs/proto/user",
@@ -109,6 +128,9 @@ Configuration items:
 - `targetDirectory`: Target directory for synced files (supports relative or absolute paths)
 - `filePatterns`: File patterns to sync (supports glob patterns)
 - `excludePatterns`: File patterns to exclude (supports glob patterns)
+- `autoSync`: Auto sync configuration
+  - `enabled`: Whether to enable auto sync
+  - `interval`: Auto sync interval (seconds), defaults to 300 seconds (5 minutes)
 - `postSyncCommands`: Commands to execute after sync completion
 
 ### Backup Settings (`stackFileSync.backupEnabled`)
@@ -136,6 +158,10 @@ Whether to automatically backup original files before syncing.
       "targetDirectory": "lib/common/net/grpcs/proto/user",
       "filePatterns": ["**/*.proto"],
       "excludePatterns": ["**/backend/**"],
+      "autoSync": {
+        "enabled": true,
+        "interval": 300
+      },
       "postSyncCommands": [
         {
           "directory": "lib/common/net/grpcs/proto/user",

@@ -12,6 +12,7 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
 - 同步前自动备份原文件
 - 可配置目标同步目录
 - 支持编译后处理（如 proto 文件编译）
+- 支持自动同步功能，可设置同步时间间隔
 
 ## 使用方法
 
@@ -48,6 +49,20 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
 4. 等待同步完成
 5. 执行配置的后处理命令（如果有）
 
+### 2. 自动同步设置
+
+可以通过以下方式配置自动同步：
+
+1. 在左侧活动栏中点击 "Stack File Sync" 图标
+2. 在仓库列表中右键点击需要自动同步的仓库
+3. 选择 "启用自动同步" 或 "禁用自动同步"
+
+启用自动同步后：
+
+- 仓库图标会变为蓝色，表示自动同步已启用
+- 仓库名称后会显示同步间隔时间
+- 插件会按照设定的时间间隔自动检查并同步更新
+
 ## 使用演示
 
 ### 插件支持的命令
@@ -75,6 +90,10 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
       "targetDirectory": "lib/common/net/grpcs/proto/user",
       "filePatterns": ["**/*.proto"],
       "excludePatterns": ["**/backend/**"],
+      "autoSync": {
+        "enabled": true,
+        "interval": 300
+      },
       "postSyncCommands": [
         {
           "directory": "lib/common/net/grpcs/proto/user",
@@ -109,6 +128,9 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
 - `targetDirectory`: 同步文件的目标目录（支持相对或绝对路径）
 - `filePatterns`: 要同步的文件模式（支持 glob 模式）
 - `excludePatterns`: 要排除的文件模式（支持 glob 模式）
+- `autoSync`: 自动同步配置
+  - `enabled`: 是否启用自动同步
+  - `interval`: 自动同步间隔（秒），默认为 300 秒（5 分钟）
 - `postSyncCommands`: 同步完成后要执行的命令列表
 
 ### 备份设置 (`stackFileSync.backupEnabled`)
@@ -136,6 +158,10 @@ VSCode 插件用于在不同代码仓库之间同步文件。支持从多个 Git
       "targetDirectory": "lib/common/net/grpcs/proto/user",
       "filePatterns": ["**/*.proto"],
       "excludePatterns": ["**/backend/**"],
+      "autoSync": {
+        "enabled": true,
+        "interval": 300
+      },
       "postSyncCommands": [
         {
           "directory": "lib/common/net/grpcs/proto/user",
