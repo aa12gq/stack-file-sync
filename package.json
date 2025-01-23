@@ -2,7 +2,7 @@
   "name": "stack-file-sync",
   "displayName": "Stack File Sync",
   "description": "同步不同代码仓库之间的文件",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/aa12gq/stack-file-sync.git"
@@ -66,7 +66,9 @@
             "required": [
               "name",
               "url",
-              "branch"
+              "branch",
+              "sourceDirectory",
+              "targetDirectory"
             ],
             "properties": {
               "name": {
@@ -83,63 +85,61 @@
               },
               "sourceDirectory": {
                 "type": "string",
-                "description": "要同步的源目录（相对于仓库根目录）",
-                "default": "proto"
+                "description": "要同步的源目录（相对于仓库根目录）"
+              },
+              "targetDirectory": {
+                "type": "string",
+                "description": "同步文件的目标目录（支持相对或绝对路径）"
+              },
+              "filePatterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "**/*.proto"
+                ],
+                "description": "要同步的文件模式（支持 glob 模式）"
+              },
+              "excludePatterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "**/backend/**"
+                ],
+                "description": "要排除的文件模式（支持 glob 模式）"
+              },
+              "postSyncCommands": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "directory",
+                    "command"
+                  ],
+                  "properties": {
+                    "directory": {
+                      "type": "string",
+                      "description": "执行命令的目录（相对于工作区根目录）"
+                    },
+                    "command": {
+                      "type": "string",
+                      "description": "要执行的命令"
+                    }
+                  }
+                },
+                "default": [],
+                "description": "同步完成后要执行的命令列表"
               }
             }
           }
-        },
-        "stackFileSync.filePatterns": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [
-            "**/*.proto"
-          ],
-          "description": "要同步的文件模式（支持 glob 模式）"
-        },
-        "stackFileSync.excludePatterns": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [
-            "**/backend/**"
-          ],
-          "description": "要排除的文件模式（支持 glob 模式）"
-        },
-        "stackFileSync.targetDirectory": {
-          "type": "string",
-          "default": "",
-          "description": "同步文件的目标目录"
         },
         "stackFileSync.backupEnabled": {
           "type": "boolean",
           "default": true,
           "description": "是否在同步前备份文件"
-        },
-        "stackFileSync.postSyncCommands": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "directory",
-              "command"
-            ],
-            "properties": {
-              "directory": {
-                "type": "string",
-                "description": "执行命令的目录（相对于工作区根目录）"
-              },
-              "command": {
-                "type": "string",
-                "description": "要执行的命令"
-              }
-            }
-          },
-          "default": [],
-          "description": "同步完成后要执行的命令列表"
         }
       }
     },
