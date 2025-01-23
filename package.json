@@ -1,9 +1,9 @@
 {
   "name": "stack-file-sync",
   "displayName": "Stack File Sync",
-  "description": "同步不同代码仓库之间的文件",
+  "description": "一个解决团队协作中文件同步痛点的 VSCode 插件。特别适用于前后端协作场景，比如后端更新了 Proto 文件后，前端同学需要及时同步最新文件的情况。通过配置文件源和目标位置，可以一键完成文件同步，避免手动拷贝文件可能带来的遗漏和版本不一致问题。",
   "icon": "icon.png",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "repository": {
     "type": "git",
     "url": "https://github.com/aa12gq/stack-file-sync.git"
@@ -61,12 +61,16 @@
         "command": "stack-file-sync.syncFiles",
         "key": "ctrl+alt+s",
         "mac": "cmd+alt+s",
+        "win": "ctrl+alt+s",
+        "linux": "ctrl+alt+s",
         "when": "workspaceFolderCount > 0"
       },
       {
         "command": "stack-file-sync.configureSync",
         "key": "ctrl+alt+,",
         "mac": "cmd+alt+,",
+        "win": "ctrl+alt+,",
+        "linux": "ctrl+alt+,",
         "when": "workspaceFolderCount > 0"
       }
     ],

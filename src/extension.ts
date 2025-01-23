@@ -63,6 +63,18 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // 注册配置同步命令
+  let configureDisposable = vscode.commands.registerCommand(
+    "stack-file-sync.configureSync",
+    () => {
+      // 打开设置页面并定位到插件配置
+      vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "stackFileSync"
+      );
+    }
+  );
+
   // 注册同步文件命令
   let syncFilesDisposable = vscode.commands.registerCommand(
     "stack-file-sync.syncFiles",
@@ -439,7 +451,39 @@ export function activate(context: vscode.ExtensionContext) {
               if (repo.postSyncCommands && repo.postSyncCommands.length > 0) {
                 outputChannel.appendLine("\n执行后处理命令:");
                 for (const cmd of repo.postSyncCommands) {
-                  // ... execute commands ...
+                  try {
+                    const cmdDir = path.isAbsolute(cmd.directory)
+                      ? cmd.directory
+                      : path.join(workspaceRoot, cmd.directory);
+
+                    // 检查目录是否存在
+                    if (!fs.existsSync(cmdDir)) {
+                      outputChannel.appendLine(`警告: 目录不存在 ${cmdDir}`);
+                      continue;
+                    }
+
+                    outputChannel.appendLine(
+                      `\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`
+                    );
+
+                    // 执行命令
+                    const { execSync } = require("child_process");
+                    const result = execSync(cmd.command, {
+                      cwd: cmdDir,
+                      encoding: "utf8",
+                      stdio: ["inherit", "pipe", "pipe"],
+                    });
+
+                    outputChannel.appendLine("命令输出:");
+                    outputChannel.appendLine(result);
+                    outputChannel.appendLine("✅ 命令执行成功");
+                  } catch (error) {
+                    outputChannel.appendLine(
+                      `❌ 命令执行失败: ${
+                        error instanceof Error ? error.message : String(error)
+                      }`
+                    );
+                  }
                 }
               }
 
@@ -475,5 +519,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(showOutputDisposable);
+  context.subscriptions.push(configureDisposable);
   context.subscriptions.push(syncFilesDisposable);
 }
