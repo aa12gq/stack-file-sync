@@ -3,7 +3,7 @@
   "displayName": "Stack File Sync",
   "description": "一个解决团队协作中文件同步痛点的 VSCode 插件。特别适用于前后端协作场景，比如后端更新了 Proto 文件后，前端同学需要及时同步最新文件的情况。通过配置文件源和目标位置，可以一键完成文件同步，避免手动拷贝文件可能带来的遗漏和版本不一致问题。",
   "icon": "icon.png",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/aa12gq/stack-file-sync.git"
@@ -27,8 +27,7 @@
     "Formatters"
   ],
   "activationEvents": [
-    "onCommand:stack-file-sync.syncFiles",
-    "onCommand:stack-file-sync.configureSync"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "galleryBanner": {
@@ -36,12 +35,55 @@
     "theme": "dark"
   },
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "stack-file-sync",
+          "title": "Stack File Sync",
+          "icon": "$(sync)"
+        }
+      ]
+    },
+    "views": {
+      "stack-file-sync": [
+        {
+          "id": "stack-file-sync-repositories",
+          "name": "同步仓库",
+          "icon": "$(repo)",
+          "contextualTitle": "Stack File Sync"
+        },
+        {
+          "id": "stack-file-sync-logs",
+          "name": "同步日志",
+          "icon": "$(output)",
+          "contextualTitle": "Stack File Sync"
+        }
+      ]
+    },
     "commands": [
       {
+        "command": "stack-file-sync.enableAutoSync",
+        "title": "启用自动同步",
+        "icon": {
+          "light": "$(sync-enabled)",
+          "dark": "$(sync-enabled)"
+        },
+        "category": "Stack File Sync"
+      },
+      {
+        "command": "stack-file-sync.disableAutoSync",
+        "title": "禁用自动同步",
+        "icon": {
+          "light": "$(sync-ignored)",
+          "dark": "$(sync-ignored)"
+        },
+        "category": "Stack File Sync"
+      },
+      {
         "command": "stack-file-sync.syncFiles",
-        "title": "同步文件 (默认快捷键: Ctrl/Cmd+Alt+S)",
-        "category": "Stack File Sync",
-        "icon": "$(sync)"
+        "title": "同步文件",
+        "icon": "$(sync)",
+        "category": "Stack File Sync"
       },
       {
         "command": "stack-file-sync.configureSync",
@@ -111,6 +153,26 @@
                 "type": "string",
                 "description": "同步文件的目标目录（支持相对或绝对路径）"
               },
+              "autoSync": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "是否启用自动同步"
+                  },
+                  "interval": {
+                    "type": "number",
+                    "default": 300,
+                    "description": "自动同步间隔（秒）"
+                  }
+                },
+                "default": {
+                  "enabled": false,
+                  "interval": 300
+                },
+                "description": "自动同步配置"
+              },
               "filePatterns": {
                 "type": "array",
                 "items": {
@@ -164,6 +226,40 @@
       }
     },
     "menus": {
+      "view/title": [
+        {
+          "command": "stack-file-sync.syncFiles",
+          "when": "view == stack-file-sync-repositories",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "stack-file-sync.enableAutoSync",
+          "when": "view == stack-file-sync-repositories && viewItem == autoSyncDisabled",
+          "group": "inline"
+        },
+        {
+          "command": "stack-file-sync.disableAutoSync",
+          "when": "view == stack-file-sync-repositories && viewItem == autoSyncEnabled",
+          "group": "inline"
+        },
+        {
+          "command": "stack-file-sync.syncFiles",
+          "when": "view == stack-file-sync-repositories",
+          "group": "1_sync"
+        },
+        {
+          "command": "stack-file-sync.enableAutoSync",
+          "when": "view == stack-file-sync-repositories && viewItem == autoSyncDisabled",
+          "group": "2_autosync"
+        },
+        {
+          "command": "stack-file-sync.disableAutoSync",
+          "when": "view == stack-file-sync-repositories && viewItem == autoSyncEnabled",
+          "group": "2_autosync"
+        }
+      ],
       "editor/title": [
         {
           "command": "stack-file-sync.syncFiles",
