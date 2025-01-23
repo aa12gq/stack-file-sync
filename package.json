@@ -2,7 +2,7 @@
   "name": "stack-file-sync",
   "displayName": "Stack File Sync",
   "description": "同步不同代码仓库之间的文件",
-  "version": "1.0.6",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/aa12gq/stack-file-sync.git"

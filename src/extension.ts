@@ -384,6 +384,7 @@ export function activate(context: vscode.ExtensionContext) {
                 quickPick.title = "选择要同步的文件";
                 quickPick.placeholder = "选择要同步的文件（可多选）";
                 quickPick.canSelectMany = true;
+                quickPick.ignoreFocusOut = true;
                 quickPick.items = allFiles.map((file) => {
                   const relativePath = path.relative(repoDir, file.fsPath);
                   return {
