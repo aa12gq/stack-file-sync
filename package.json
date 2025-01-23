@@ -2,12 +2,12 @@
   "name": "stack-file-sync",
   "displayName": "Stack File Sync",
   "description": "同步不同代码仓库之间的文件",
-  "version": "0.0.1",
+  "version": "1.0.6",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/stack-file-sync.git"
+    "url": "https://github.com/aa12gq/stack-file-sync.git"
   },
-  "publisher": "yourusername",
+  "publisher": "aa12gq",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -32,6 +32,12 @@
         "title": "配置同步 (默认快捷键: Ctrl/Cmd+Alt+,)",
         "category": "Stack File Sync",
         "icon": "$(gear)"
+      },
+      {
+        "command": "stack-file-sync.showOutput",
+        "title": "显示同步日志",
+        "category": "Stack File Sync",
+        "icon": "$(output)"
       }
     ],
     "keybindings": [
