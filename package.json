@@ -1,49 +1,125 @@
 {
   "name": "stack-file-sync",
-  "displayName": "stack-file-sync",
-  "description": "Seamlessly synchronize and manage files between frontend and backend codebases, supporting Go and other stack files",
+  "displayName": "Stack File Sync",
+  "description": "同步不同代码仓库之间的文件",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:stack-file-sync.syncFiles",
+    "onCommand:stack-file-sync.configureSync"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "stack-file-sync.helloWorld",
-        "title": "Hello World"
+        "command": "stack-file-sync.syncFiles",
+        "title": "同步文件",
+        "category": "Stack File Sync",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "stack-file-sync.configureSync",
+        "title": "配置同步",
+        "category": "Stack File Sync",
+        "icon": "$(gear)"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Stack File Sync",
+      "properties": {
+        "stackFileSync.repositories": {
+          "type": "array",
+          "default": [],
+          "description": "要同步的仓库列表",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "url",
+              "branch"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "仓库名称"
+              },
+              "url": {
+                "type": "string",
+                "description": "仓库URL"
+              },
+              "branch": {
+                "type": "string",
+                "description": "分支名称"
+              }
+            }
+          }
+        },
+        "stackFileSync.filePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.proto"
+          ],
+          "description": "要同步的文件模式（支持 glob 模式）"
+        },
+        "stackFileSync.excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/backend/**"
+          ],
+          "description": "要排除的文件模式（支持 glob 模式）"
+        },
+        "stackFileSync.targetDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "同步文件的目标目录"
+        },
+        "stackFileSync.backupEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否在同步前备份文件"
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "stack-file-sync.syncFiles",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "stack-file-sync.configureSync",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run package",
-    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
-    "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "pnpm run compile -- --watch",
+    "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.96.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@typescript-eslint/eslint-plugin": "^8.17.0",
-    "@typescript-eslint/parser": "^8.17.0",
-    "eslint": "^9.16.0",
-    "esbuild": "^0.24.0",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.7.2",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "esbuild": "^0.19.11",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "simple-git": "^3.22.0"
   }
 }

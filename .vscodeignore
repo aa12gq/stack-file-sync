@@ -6,9 +6,11 @@ src/**
 .gitignore
 .yarnrc
 esbuild.js
+webpack.config.js
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/eslint.config.mjs
+**/.eslintrc.json
 **/*.map
 **/*.ts
 **/.vscode-test.*
