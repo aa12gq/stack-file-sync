@@ -101,13 +101,17 @@ export function activate(context: vscode.ExtensionContext) {
               cancellable: true,
             },
             async (progress, token) => {
-              // 更新状态栏
-              statusBarItem.text = "$(sync~spin) 同步中";
-              statusBarItem.backgroundColor = new vscode.ThemeColor(
-                "statusBarItem.warningBackground"
-              );
-
               try {
+                // 设置进度对象
+                autoSyncManager.setProgress(progress);
+                progress.report({ message: "正在准备同步..." });
+
+                // 更新状态栏
+                statusBarItem.text = "$(sync~spin) 正在同步...";
+                statusBarItem.backgroundColor = new vscode.ThemeColor(
+                  "statusBarItem.warningBackground"
+                );
+
                 // 检查工作区
                 if (!vscode.workspace.workspaceFolders?.length) {
                   throw new Error("请先打开一个工作区文件夹");

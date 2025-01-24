@@ -9,11 +9,42 @@ import { Minimatch } from "minimatch";
 export class AutoSyncManager {
   private timers: Map<string, NodeJS.Timer> = new Map();
   private lastSyncState: Map<string, Map<string, number>> = new Map(); // 记录每个仓库的文件状态
+  private outputChannel: vscode.OutputChannel;
+  private progress:
+    | vscode.Progress<{ message?: string; increment?: number }>
+    | undefined;
+  private totalFiles: number = 0;
+  private processedFiles: number = 0;
 
   constructor(
-    private outputChannel: vscode.OutputChannel,
+    outputChannel: vscode.OutputChannel,
     private statusBarItem: vscode.StatusBarItem
-  ) {}
+  ) {
+    this.outputChannel = outputChannel;
+  }
+
+  // 设置进度对象
+  public setProgress(
+    progress: vscode.Progress<{ message?: string; increment?: number }>
+  ) {
+    this.progress = progress;
+  }
+
+  // 重置进度计数
+  private resetProgress() {
+    this.totalFiles = 0;
+    this.processedFiles = 0;
+  }
+
+  // 更新进度
+  private updateProgress(message: string, increment?: number) {
+    if (this.progress) {
+      this.progress.report({
+        message,
+        increment,
+      });
+    }
+  }
 
   // 启动所有自动同步任务
   public startAll() {
@@ -316,6 +347,32 @@ export class AutoSyncManager {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
+    // 重置进度
+    this.resetProgress();
+
+    // 首先计算总文件数
+    const countFiles = (dir: string, baseDir: string) => {
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const fullPath = path.join(dir, item);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          countFiles(fullPath, baseDir);
+        } else {
+          const relativePath = path.relative(baseDir, fullPath);
+          if (
+            !repo.selectedFiles ||
+            repo.selectedFiles.includes(relativePath)
+          ) {
+            this.totalFiles++;
+          }
+        }
+      }
+    };
+
+    countFiles(sourceDir, sourceDir);
+    this.updateProgress(`准备同步 ${this.totalFiles} 个文件...`);
+
     // 递归复制文件
     const copyFiles = (dir: string, baseDir: string) => {
       const items = fs.readdirSync(dir);
@@ -347,6 +404,17 @@ export class AutoSyncManager {
 
           // 复制文件
           fs.copyFileSync(fullPath, targetPath);
+          this.processedFiles++;
+
+          // 更新进度
+          const progressPercent = Math.round(
+            (this.processedFiles / this.totalFiles) * 100
+          );
+          this.updateProgress(
+            `正在同步: ${relativePath} (${this.processedFiles}/${this.totalFiles})`,
+            100 / this.totalFiles
+          );
+
           this.outputChannel.appendLine(`[自动同步] 更新文件: ${relativePath}`);
         }
       }
