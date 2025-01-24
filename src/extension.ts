@@ -5,6 +5,7 @@ import { Repository } from "./types";
 import { AutoSyncManager } from "./providers/AutoSyncManager";
 import { RepositoriesViewProvider } from "./providers/RepositoriesViewProvider";
 import { LogsViewProvider } from "./providers/LogsViewProvider";
+import { ConfigViewProvider } from "./providers/ConfigViewProvider";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -317,6 +318,27 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       "stack-file-sync-logs",
       logsProvider
+    )
+  );
+
+  // 创建配置视图提供者
+  const configProvider = new ConfigViewProvider(context.extensionUri);
+
+  // 注册配置视图
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      "stack-file-sync-config",
+      configProvider
+    )
+  );
+
+  // 注册刷新仓库列表的命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "stack-file-sync.refreshRepositories",
+      () => {
+        repositoriesProvider.refresh();
+      }
     )
   );
 }

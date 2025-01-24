@@ -188,23 +188,30 @@ export class AutoSyncManager {
             getFiles(fullPath, baseDir);
           } else {
             const relativePath = path.relative(baseDir, fullPath);
-            // 检查文件是否匹配模式
-            const isMatch = filePatterns.some((pattern) =>
-              new Minimatch(pattern, { dot: true }).match(relativePath)
-            );
-            const isExcluded = excludePatterns.some((pattern) =>
-              new Minimatch(pattern, { dot: true }).match(relativePath)
-            );
-
-            if (isMatch && !isExcluded) {
-              files.push(relativePath);
-            }
+            files.push(relativePath);
           }
         }
       };
 
+      // 获取并打印克隆的文件列表
       getFiles(sourceDir, sourceDir);
-      return files;
+      this.appendLine(
+        `\n[自动同步] ${repo.name} 克隆完成，共克隆了 ${files.length} 个文件：`
+      );
+      files.forEach((file) => {
+        this.appendLine(`  - ${file}`);
+      });
+
+      // 过滤出可同步的文件
+      return files.filter((relativePath) => {
+        const isMatch = filePatterns.some((pattern) =>
+          new Minimatch(pattern, { dot: true }).match(relativePath)
+        );
+        const isExcluded = excludePatterns.some((pattern) =>
+          new Minimatch(pattern, { dot: true }).match(relativePath)
+        );
+        return isMatch && !isExcluded;
+      });
     } finally {
       // 清理临时目录
       try {
@@ -249,6 +256,49 @@ export class AutoSyncManager {
 
       // 检出文件
       await git.checkout(repo.branch);
+
+      // 获取文件列表
+      const sourceDir = path.join(tempDir, repo.sourceDirectory);
+      const filePatterns = repo.filePatterns || ["**/*.proto"];
+      const excludePatterns = repo.excludePatterns || ["**/backend/**"];
+      const files: string[] = [];
+
+      // 递归获取文件列表
+      const getFiles = (dir: string, baseDir: string) => {
+        const items = fs.readdirSync(dir);
+
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = fs.statSync(fullPath);
+
+          if (stat.isDirectory()) {
+            getFiles(fullPath, baseDir);
+          } else {
+            const relativePath = path.relative(baseDir, fullPath);
+            files.push(relativePath);
+          }
+        }
+      };
+
+      // 获取并打印克隆的文件列表
+      getFiles(sourceDir, sourceDir);
+      this.appendLine(
+        `\n[自动同步] ${repo.name} 克隆完成，共克隆了 ${files.length} 个文件：`
+      );
+      files.forEach((file) => {
+        this.appendLine(`  - ${file}`);
+      });
+
+      // 过滤出可同步的文件
+      const syncableFiles = files.filter((relativePath) => {
+        const isMatch = filePatterns.some((pattern) =>
+          new Minimatch(pattern, { dot: true }).match(relativePath)
+        );
+        const isExcluded = excludePatterns.some((pattern) =>
+          new Minimatch(pattern, { dot: true }).match(relativePath)
+        );
+        return isMatch && !isExcluded;
+      });
 
       // 检查是否有更新
       const hasChanges = await this.checkForChanges(repo, tempDir);
