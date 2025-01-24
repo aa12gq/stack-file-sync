@@ -17,6 +17,9 @@ export function activate(context: vscode.ExtensionContext) {
   // 创建输出通道
   const outputChannel = vscode.window.createOutputChannel("Stack File Sync");
 
+  // 创建日志视图提供者
+  const logsProvider = new LogsViewProvider(context.extensionUri);
+
   // 创建状态栏项
   const statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left
@@ -42,6 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 创建自动同步管理器
   const autoSyncManager = new AutoSyncManager(outputChannel, statusBarItem);
+  autoSyncManager.setLogsProvider(logsProvider);
 
   // 启动自动同步
   autoSyncManager.startAll();
@@ -309,7 +313,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // 注册日志视图
-  const logsProvider = new LogsViewProvider(context.extensionUri);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       "stack-file-sync-logs",

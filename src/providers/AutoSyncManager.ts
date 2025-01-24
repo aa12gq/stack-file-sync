@@ -5,6 +5,7 @@ import { simpleGit } from "simple-git";
 import * as os from "os";
 import { Repository } from "../types";
 import { Minimatch } from "minimatch";
+import { LogsViewProvider } from "../providers/LogsViewProvider";
 
 export class AutoSyncManager {
   private timers: Map<string, NodeJS.Timer> = new Map();
@@ -15,12 +16,22 @@ export class AutoSyncManager {
     | undefined;
   private totalFiles: number = 0;
   private processedFiles: number = 0;
+  private logsProvider?: LogsViewProvider;
 
   constructor(
     outputChannel: vscode.OutputChannel,
     private statusBarItem: vscode.StatusBarItem
   ) {
     this.outputChannel = outputChannel;
+  }
+
+  public setLogsProvider(logsProvider: LogsViewProvider) {
+    this.logsProvider = logsProvider;
+  }
+
+  private appendLine(message: string) {
+    this.outputChannel.appendLine(message);
+    this.logsProvider?.addLog(message);
   }
 
   // 设置进度对象
@@ -57,9 +68,7 @@ export class AutoSyncManager {
       if (!repo || !repo.autoSync?.enabled) {
         clearInterval(timer as NodeJS.Timeout);
         this.timers.delete(repoName);
-        this.outputChannel.appendLine(
-          `\n[自动同步] 停止 ${repoName} 的自动同步`
-        );
+        this.appendLine(`\n[自动同步] 停止 ${repoName} 的自动同步`);
       }
     }
 
@@ -73,7 +82,7 @@ export class AutoSyncManager {
           if (this.getTimerInterval(existingTimer) !== currentInterval) {
             clearInterval(existingTimer as NodeJS.Timeout);
             this.startAutoSync(repo);
-            this.outputChannel.appendLine(
+            this.appendLine(
               `\n[自动同步] 更新 ${repo.name} 的同步间隔为 ${repo.autoSync.interval}秒`
             );
           }
@@ -88,7 +97,7 @@ export class AutoSyncManager {
   public stopAll() {
     for (const [repoName, timer] of this.timers.entries()) {
       clearInterval(timer as NodeJS.Timeout);
-      this.outputChannel.appendLine(`\n[自动同步] 停止 ${repoName} 的自动同步`);
+      this.appendLine(`\n[自动同步] 停止 ${repoName} 的自动同步`);
     }
     this.timers.clear();
   }
@@ -113,7 +122,7 @@ export class AutoSyncManager {
       this.timers.delete(repo.name);
     }
 
-    this.outputChannel.appendLine(
+    this.appendLine(
       `\n[自动同步] 启动 ${repo.name} 的自动同步，间隔: ${repo.autoSync.interval}秒`
     );
 
@@ -121,7 +130,7 @@ export class AutoSyncManager {
       try {
         await this.checkAndSync(repo);
       } catch (error) {
-        this.outputChannel.appendLine(
+        this.appendLine(
           `[自动同步] ${repo.name} 同步失败: ${
             error instanceof Error ? error.message : String(error)
           }`
@@ -201,7 +210,7 @@ export class AutoSyncManager {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch (error) {
-        this.outputChannel.appendLine(
+        this.appendLine(
           `[自动同步] 清理临时目录失败: ${
             error instanceof Error ? error.message : String(error)
           }`
@@ -212,7 +221,7 @@ export class AutoSyncManager {
 
   // 检查并执行同步
   public async checkAndSync(repo: Repository) {
-    this.outputChannel.appendLine(`\n[自动同步] 检查 ${repo.name} 的更新...`);
+    this.appendLine(`\n[自动同步] 检查 ${repo.name} 的更新...`);
 
     // 创建临时目录
     const tempDir = path.join(
@@ -247,14 +256,14 @@ export class AutoSyncManager {
       if (hasChanges) {
         await this.syncFiles(repo, tempDir);
       } else {
-        this.outputChannel.appendLine(`[自动同步] ${repo.name} 没有检测到更新`);
+        this.appendLine(`[自动同步] ${repo.name} 没有检测到更新`);
       }
     } finally {
       // 清理临时目录
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch (error) {
-        this.outputChannel.appendLine(
+        this.appendLine(
           `[自动同步] 清理临时目录失败: ${
             error instanceof Error ? error.message : String(error)
           }`
@@ -415,7 +424,7 @@ export class AutoSyncManager {
             100 / this.totalFiles
           );
 
-          this.outputChannel.appendLine(`[自动同步] 更新文件: ${relativePath}`);
+          this.appendLine(`[自动同步] 更新文件: ${relativePath}`);
         }
       }
     };
@@ -424,7 +433,7 @@ export class AutoSyncManager {
 
     // 执行后处理命令
     if (repo.postSyncCommands?.length) {
-      this.outputChannel.appendLine("\n[自动同步] 执行后处理命令:");
+      this.appendLine("\n[自动同步] 执行后处理命令:");
       for (const cmd of repo.postSyncCommands) {
         try {
           const cmdDir = path.isAbsolute(cmd.directory)
@@ -432,13 +441,11 @@ export class AutoSyncManager {
             : path.join(workspaceRoot, cmd.directory);
 
           if (!fs.existsSync(cmdDir)) {
-            this.outputChannel.appendLine(`警告: 目录不存在 ${cmdDir}`);
+            this.appendLine(`警告: 目录不存在 ${cmdDir}`);
             continue;
           }
 
-          this.outputChannel.appendLine(
-            `\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`
-          );
+          this.appendLine(`\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`);
 
           const { execSync } = require("child_process");
           const result = execSync(cmd.command, {
@@ -447,11 +454,11 @@ export class AutoSyncManager {
             stdio: ["inherit", "pipe", "pipe"],
           });
 
-          this.outputChannel.appendLine("命令输出:");
-          this.outputChannel.appendLine(result);
-          this.outputChannel.appendLine("✅ 命令执行成功");
+          this.appendLine("命令输出:");
+          this.appendLine(result);
+          this.appendLine("✅ 命令执行成功");
         } catch (error) {
-          this.outputChannel.appendLine(
+          this.appendLine(
             `❌ 命令执行失败: ${
               error instanceof Error ? error.message : String(error)
             }`
@@ -460,6 +467,6 @@ export class AutoSyncManager {
       }
     }
 
-    this.outputChannel.appendLine(`[自动同步] ${repo.name} 同步完成`);
+    this.appendLine(`[自动同步] ${repo.name} 同步完成`);
   }
 }
