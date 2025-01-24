@@ -307,6 +307,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@types/minimatch": "^5.1.2",
+    "minimatch": "^10.0.1",
     "simple-git": "^3.22.0"
   }
 }
