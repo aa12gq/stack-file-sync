@@ -1,22 +1,22 @@
-# Stack File Sync
+# Stack File Sync 🔄
 
 English | [简体中文](README.md)
 
-A VSCode extension for synchronizing files between different code repositories. Supports syncing files from multiple Git repositories to specified directories with file backup functionality.
+A VSCode extension for synchronizing files between different code repositories. Supports syncing files from multiple Git repositories to specified directories with file backup functionality. ✨
 
-## Features
+## Features 🌟
 
-- Support syncing files from multiple Git repositories
-- Support file pattern matching (using glob syntax)
-- Support excluding specific files or directories
-- Automatic file backup before syncing
-- Configurable target sync directory
-- Support post-sync processing (e.g., proto file compilation)
-- Support automatic synchronization with configurable intervals
+- ⚡ Support syncing files from multiple Git repositories
+- 🎯 Support file pattern matching (using glob syntax)
+- 🚫 Support excluding specific files or directories
+- 💾 Automatic file backup before syncing
+- 📁 Configurable target sync directory
+- 🛠️ Support post-sync processing (e.g., proto file compilation)
+- 🔄 Support automatic synchronization with configurable intervals
 
-## Usage
+## Usage 📖
 
-### 1. Configure Sync Settings
+### 1. Configure Sync Settings ⚙️
 
 Multiple ways to open settings:
 
@@ -24,7 +24,7 @@ Multiple ways to open settings:
 - Type "Stack File Sync: Configure Sync" in command palette
 - Right-click in explorer and select "Configure Sync"
 
-### 2. Auto Sync Settings
+### 2. Auto Sync Settings 🔄
 
 You can configure automatic synchronization through:
 
@@ -197,7 +197,7 @@ Whether to automatically backup original files before syncing.
 }
 ```
 
-## Notes
+## Notes ⚠️
 
 1. Ensure sufficient Git repository access permissions
 2. Recommend backing up important files before syncing
@@ -205,21 +205,21 @@ Whether to automatically backup original files before syncing.
 4. Target directory will prompt for creation if it doesn't exist
 5. Ensure required tools for post-sync commands are installed (e.g., protoc, thrift)
 
-## FAQ
+## FAQ ❓
 
-1. **Sync Failed**
+1. **Sync Failed** ❌
 
    - Check Git repository access permissions
    - Verify network connection
    - Validate target directory permissions
 
-2. **Files Not Found**
+2. **Files Not Found** 🔍
 
    - Check if file patterns are correctly configured
    - Confirm files exist on specified branch
    - Check if files are filtered by exclude patterns
 
-3. **Compilation Failed**
+3. **Compilation Failed** 🚨
 
    - Verify post-sync command configuration
    - Ensure command line tools are properly installed
