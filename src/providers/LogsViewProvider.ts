@@ -38,6 +38,19 @@ export class LogsViewProvider implements vscode.WebviewViewProvider {
             margin-bottom: 5px;
             padding: 5px;
             border-radius: 3px;
+            display: flex;
+            align-items: flex-start;
+          }
+          .log-number {
+            min-width: 40px;
+            text-align: right;
+            margin-right: 8px;
+            color: var(--vscode-terminal-foreground);
+            opacity: 0.5;
+            font-family: var(--vscode-editor-font-family);
+          }
+          .log-content {
+            flex: 1;
           }
           .success {
             color: var(--vscode-terminal-ansiGreen);
@@ -64,70 +77,110 @@ export class LogsViewProvider implements vscode.WebviewViewProvider {
           }
         </style>
         <script>
-          const vscode = acquireVsCodeApi();
-          let autoScroll = true;
-          let scrollTimeout;
-          
-          // 监听滚动事件
-          document.addEventListener('DOMContentLoaded', () => {
-            const logs = document.getElementById('logs');
+          (function() {
+            const vscode = acquireVsCodeApi();
             
-            logs.addEventListener('scroll', () => {
-              // 清除之前的定时器
-              clearTimeout(scrollTimeout);
-              
-              // 检查是否手动滚动
-              const isScrolledToBottom = logs.scrollHeight - logs.clientHeight <= logs.scrollTop + 1;
-              if (!isScrolledToBottom) {
-                autoScroll = false;
+            // 状态变量
+            const state = {
+              autoScroll: true,
+              scrollTimeout: null,
+              logCounter: 0,
+              currentSyncId: null,
+              lastMessageTime: 0,
+              lastMessage: ''
+            };
+
+            // DOM加载完成后初始化
+            document.addEventListener('DOMContentLoaded', function() {
+              const logs = document.getElementById('logs');
+              if (!logs) return;
+
+              // 监听滚动事件
+              logs.addEventListener('scroll', function() {
+                if (state.scrollTimeout) {
+                  clearTimeout(state.scrollTimeout);
+                }
+
+                const isScrolledToBottom = logs.scrollHeight - logs.clientHeight <= logs.scrollTop + 1;
                 
-                // 3秒后恢复自动滚动
-                scrollTimeout = setTimeout(() => {
-                  autoScroll = true;
-                  if (logs.scrollHeight > logs.clientHeight) {
-                    logs.scrollTop = logs.scrollHeight;
-                  }
-                }, 3000);
-              } else {
-                autoScroll = true;
+                if (!isScrolledToBottom) {
+                  state.autoScroll = false;
+                  state.scrollTimeout = setTimeout(function() {
+                    state.autoScroll = true;
+                    if (logs.scrollHeight > logs.clientHeight) {
+                      logs.scrollTop = logs.scrollHeight;
+                    }
+                  }, 3000);
+                } else {
+                  state.autoScroll = true;
+                }
+              });
+            });
+
+            // 处理消息
+            window.addEventListener('message', function(event) {
+              const logs = document.getElementById('logs');
+              if (!logs) return;
+
+              const now = Date.now();
+              const message = event.data.message;
+              
+              // 只在检查更新时增加计数器
+              if (message.includes('检查')) {
+                state.logCounter++;
+                state.currentSyncId = state.logCounter;
+              }
+              // 如果还没有设置currentSyncId，则设置为1
+              if (!state.currentSyncId) {
+                state.currentSyncId = 1;
+              }
+              
+              state.lastMessageTime = now;
+              state.lastMessage = message;
+
+              const logEntry = document.createElement('div');
+              const logNumber = document.createElement('span');
+              const logContent = document.createElement('div');
+              const timestamp = document.createElement('span');
+              const messageSpan = document.createElement('span');
+
+              // 使用当前同步操作的ID作为编号
+              logNumber.className = 'log-number';
+              logNumber.textContent = '#' + String(state.currentSyncId).padStart(3, '0');
+
+              // 添加时间戳
+              timestamp.className = 'timestamp';
+              timestamp.textContent = new Date().toLocaleTimeString();
+
+              // 设置消息样式
+              logEntry.className = 'log-entry';
+              logContent.className = 'log-content';
+              messageSpan.textContent = message;
+
+              // 根据消息内容设置样式
+              if (message.includes('✅') || message.includes('成功')) {
+                logEntry.classList.add('success');
+              } else if (message.includes('❌') || message.includes('失败') || message.includes('错误')) {
+                logEntry.classList.add('error');
+              } else if (message.includes('警告')) {
+                logEntry.classList.add('warning');
+              } else if (message.includes('[自动同步]')) {
+                logEntry.classList.add('info');
+              }
+
+              // 组装DOM
+              logContent.appendChild(timestamp);
+              logContent.appendChild(messageSpan);
+              logEntry.appendChild(logNumber);
+              logEntry.appendChild(logContent);
+              logs.appendChild(logEntry);
+
+              // 自动滚动
+              if (state.autoScroll && logs.scrollHeight > logs.clientHeight) {
+                logs.scrollTop = logs.scrollHeight;
               }
             });
-          });
-
-          window.addEventListener('message', event => {
-            const logs = document.getElementById('logs');
-            const logEntry = document.createElement('div');
-            const timestamp = document.createElement('span');
-            const message = document.createElement('span');
-            
-            // 添加时间戳
-            timestamp.className = 'timestamp';
-            timestamp.textContent = new Date().toLocaleTimeString();
-            
-            // 设置消息样式
-            logEntry.className = 'log-entry';
-            message.textContent = event.data.message;
-            
-            // 根据消息内容设置样式
-            if (event.data.message.includes('✅') || event.data.message.includes('成功')) {
-              logEntry.classList.add('success');
-            } else if (event.data.message.includes('❌') || event.data.message.includes('失败') || event.data.message.includes('错误')) {
-              logEntry.classList.add('error');
-            } else if (event.data.message.includes('警告')) {
-              logEntry.classList.add('warning');
-            } else if (event.data.message.includes('[自动同步]')) {
-              logEntry.classList.add('info');
-            }
-            
-            logEntry.appendChild(timestamp);
-            logEntry.appendChild(message);
-            logs.appendChild(logEntry);
-            
-            // 如果启用了自动滚动，则滚动到底部
-            if (autoScroll && logs.scrollHeight > logs.clientHeight) {
-              logs.scrollTop = logs.scrollHeight;
-            }
-          });
+          })();
         </script>
       </head>
       <body>
