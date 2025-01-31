@@ -6,6 +6,9 @@ import { AutoSyncManager } from "./providers/AutoSyncManager";
 import { RepositoriesViewProvider } from "./providers/RepositoriesViewProvider";
 import { LogsViewProvider } from "./providers/LogsViewProvider";
 import { ConfigViewProvider } from "./providers/ConfigViewProvider";
+import { HistoryManager } from "./providers/HistoryManager";
+import { HistoryViewProvider } from "./providers/HistoryViewProvider";
+import { HistoryTreeItem } from "./types/history";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -45,7 +48,11 @@ export function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine(`Stack File Sync v${version} 已激活`);
 
   // 创建自动同步管理器
-  const autoSyncManager = new AutoSyncManager(outputChannel, statusBarItem);
+  const autoSyncManager = new AutoSyncManager(
+    outputChannel,
+    statusBarItem,
+    context
+  );
   autoSyncManager.setLogsProvider(logsProvider);
 
   // 启动自动同步
@@ -340,5 +347,58 @@ export function activate(context: vscode.ExtensionContext) {
         repositoriesProvider.refresh();
       }
     )
+  );
+
+  // 初始化历史记录管理器
+  const historyManager = HistoryManager.getInstance(context);
+
+  // 注册历史记录视图
+  const historyViewProvider = new HistoryViewProvider(context, historyManager);
+  vscode.window.registerTreeDataProvider(
+    "stackFileSync.historyView",
+    historyViewProvider
+  );
+
+  // 注册清除历史记录命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand("stackFileSync.clearHistory", async () => {
+      const answer = await vscode.window.showWarningMessage(
+        "Are you sure you want to clear all sync history?",
+        { modal: true },
+        "Yes",
+        "No"
+      );
+
+      if (answer === "Yes") {
+        await historyManager.clearHistory();
+        historyViewProvider.refresh();
+        vscode.window.showInformationMessage(
+          "Sync history cleared successfully"
+        );
+      }
+    })
+  );
+
+  // 注册删除单个历史记录命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "stackFileSync.deleteHistoryItem",
+      async (item: HistoryTreeItem) => {
+        await historyManager.deleteHistoryItem(item.id);
+        historyViewProvider.refresh();
+        vscode.window.showInformationMessage(
+          "History item deleted successfully"
+        );
+      }
+    )
+  );
+
+  // 在同步完成后记录历史
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("stackFileSync")) {
+        historyViewProvider.refresh();
+      }
+    })
   );
 }

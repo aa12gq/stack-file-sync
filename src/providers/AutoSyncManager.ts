@@ -6,6 +6,7 @@ import * as os from "os";
 import { Repository } from "../types";
 import { Minimatch } from "minimatch";
 import { LogsViewProvider } from "../providers/LogsViewProvider";
+import { HistoryManager } from "./HistoryManager";
 
 export class AutoSyncManager {
   private timers: Map<string, NodeJS.Timer> = new Map();
@@ -17,12 +18,16 @@ export class AutoSyncManager {
   private totalFiles: number = 0;
   private processedFiles: number = 0;
   private logsProvider?: LogsViewProvider;
+  private historyManager: HistoryManager;
+  private syncedFiles: string[] = [];
 
   constructor(
     outputChannel: vscode.OutputChannel,
-    private statusBarItem: vscode.StatusBarItem
+    private statusBarItem: vscode.StatusBarItem,
+    private context: vscode.ExtensionContext
   ) {
     this.outputChannel = outputChannel;
+    this.historyManager = HistoryManager.getInstance(context);
   }
 
   public setLogsProvider(logsProvider: LogsViewProvider) {
@@ -391,132 +396,161 @@ export class AutoSyncManager {
 
   // 同步文件
   private async syncFiles(repo: Repository, tempDir: string) {
-    if (!vscode.workspace.workspaceFolders?.length) {
-      throw new Error("请先打开一个工作区文件夹");
-    }
+    this.syncedFiles = []; // 重置同步文件列表
+    const startTime = Date.now();
 
-    const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-    const sourceDir = path.join(tempDir, repo.sourceDirectory);
-    const targetDir = path.isAbsolute(repo.targetDirectory)
-      ? repo.targetDirectory
-      : path.join(workspaceRoot, repo.targetDirectory);
+    try {
+      if (!vscode.workspace.workspaceFolders?.length) {
+        throw new Error("请先打开一个工作区文件夹");
+      }
 
-    // 确保目标目录存在
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
+      const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+      const sourceDir = path.join(tempDir, repo.sourceDirectory);
+      const targetDir = path.isAbsolute(repo.targetDirectory)
+        ? repo.targetDirectory
+        : path.join(workspaceRoot, repo.targetDirectory);
 
-    // 重置进度
-    this.resetProgress();
+      // 确保目标目录存在
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
 
-    // 首先计算总文件数
-    const countFiles = (dir: string, baseDir: string) => {
-      const items = fs.readdirSync(dir);
-      for (const item of items) {
-        const fullPath = path.join(dir, item);
-        const stat = fs.statSync(fullPath);
-        if (stat.isDirectory()) {
-          countFiles(fullPath, baseDir);
-        } else {
-          const relativePath = path.relative(baseDir, fullPath);
-          if (
-            !repo.selectedFiles ||
-            repo.selectedFiles.includes(relativePath)
-          ) {
-            this.totalFiles++;
+      // 重置进度
+      this.resetProgress();
+
+      // 首先计算总文件数
+      const countFiles = (dir: string, baseDir: string) => {
+        const items = fs.readdirSync(dir);
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            countFiles(fullPath, baseDir);
+          } else {
+            const relativePath = path.relative(baseDir, fullPath);
+            if (
+              !repo.selectedFiles ||
+              repo.selectedFiles.includes(relativePath)
+            ) {
+              this.totalFiles++;
+            }
+          }
+        }
+      };
+
+      countFiles(sourceDir, sourceDir);
+      this.updateProgress(`准备同步 ${this.totalFiles} 个文件...`);
+
+      // 递归复制文件
+      const copyFiles = (dir: string, baseDir: string) => {
+        const items = fs.readdirSync(dir);
+
+        for (const item of items) {
+          const fullPath = path.join(dir, item);
+          const stat = fs.statSync(fullPath);
+
+          if (stat.isDirectory()) {
+            copyFiles(fullPath, baseDir);
+          } else {
+            const relativePath = path.relative(baseDir, fullPath);
+
+            // 如果指定了要同步的文件列表，则只同步选中的文件
+            if (
+              repo.selectedFiles &&
+              !repo.selectedFiles.includes(relativePath)
+            ) {
+              continue;
+            }
+
+            const targetPath = path.join(targetDir, relativePath);
+            const targetDirPath = path.dirname(targetPath);
+
+            // 确保目标目录存在
+            if (!fs.existsSync(targetDirPath)) {
+              fs.mkdirSync(targetDirPath, { recursive: true });
+            }
+
+            // 复制文件
+            fs.copyFileSync(fullPath, targetPath);
+            this.processedFiles++;
+            this.syncedFiles.push(relativePath);
+
+            // 更新进度
+            const progressPercent = Math.round(
+              (this.processedFiles / this.totalFiles) * 100
+            );
+            this.updateProgress(
+              `正在同步: ${relativePath} (${this.processedFiles}/${this.totalFiles})`,
+              100 / this.totalFiles
+            );
+
+            this.appendLine(`[自动同步] 更新文件: ${relativePath}`);
+          }
+        }
+      };
+
+      copyFiles(sourceDir, sourceDir);
+
+      // 执行后处理命令
+      if (repo.postSyncCommands?.length) {
+        this.appendLine("\n[自动同步] 执行后处理命令:");
+        for (const cmd of repo.postSyncCommands) {
+          try {
+            const cmdDir = path.isAbsolute(cmd.directory)
+              ? cmd.directory
+              : path.join(workspaceRoot, cmd.directory);
+
+            if (!fs.existsSync(cmdDir)) {
+              this.appendLine(`警告: 目录不存在 ${cmdDir}`);
+              continue;
+            }
+
+            this.appendLine(`\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`);
+
+            const { execSync } = require("child_process");
+            const result = execSync(cmd.command, {
+              cwd: cmdDir,
+              encoding: "utf8",
+              stdio: ["inherit", "pipe", "pipe"],
+            });
+
+            this.appendLine("命令输出:");
+            this.appendLine(result);
+            this.appendLine("✅ 命令执行成功");
+          } catch (error) {
+            this.appendLine(
+              `❌ 命令执行失败: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
           }
         }
       }
-    };
 
-    countFiles(sourceDir, sourceDir);
-    this.updateProgress(`准备同步 ${this.totalFiles} 个文件...`);
+      this.appendLine(`[自动同步] ${repo.name} 同步完成`);
 
-    // 递归复制文件
-    const copyFiles = (dir: string, baseDir: string) => {
-      const items = fs.readdirSync(dir);
+      // 记录成功的同步历史
+      await this.historyManager.addHistoryItem({
+        repository: repo.name,
+        branch: repo.branch,
+        files: this.syncedFiles,
+        status: "success",
+        duration: Date.now() - startTime,
+        syncType: repo.autoSync?.enabled ? "auto" : "manual",
+      });
+    } catch (error) {
+      // 记录失败的同步历史
+      await this.historyManager.addHistoryItem({
+        repository: repo.name,
+        branch: repo.branch,
+        files: this.syncedFiles,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+        duration: Date.now() - startTime,
+        syncType: repo.autoSync?.enabled ? "auto" : "manual",
+      });
 
-      for (const item of items) {
-        const fullPath = path.join(dir, item);
-        const stat = fs.statSync(fullPath);
-
-        if (stat.isDirectory()) {
-          copyFiles(fullPath, baseDir);
-        } else {
-          const relativePath = path.relative(baseDir, fullPath);
-
-          // 如果指定了要同步的文件列表，则只同步选中的文件
-          if (
-            repo.selectedFiles &&
-            !repo.selectedFiles.includes(relativePath)
-          ) {
-            continue;
-          }
-
-          const targetPath = path.join(targetDir, relativePath);
-          const targetDirPath = path.dirname(targetPath);
-
-          // 确保目标目录存在
-          if (!fs.existsSync(targetDirPath)) {
-            fs.mkdirSync(targetDirPath, { recursive: true });
-          }
-
-          // 复制文件
-          fs.copyFileSync(fullPath, targetPath);
-          this.processedFiles++;
-
-          // 更新进度
-          const progressPercent = Math.round(
-            (this.processedFiles / this.totalFiles) * 100
-          );
-          this.updateProgress(
-            `正在同步: ${relativePath} (${this.processedFiles}/${this.totalFiles})`,
-            100 / this.totalFiles
-          );
-
-          this.appendLine(`[自动同步] 更新文件: ${relativePath}`);
-        }
-      }
-    };
-
-    copyFiles(sourceDir, sourceDir);
-
-    // 执行后处理命令
-    if (repo.postSyncCommands?.length) {
-      this.appendLine("\n[自动同步] 执行后处理命令:");
-      for (const cmd of repo.postSyncCommands) {
-        try {
-          const cmdDir = path.isAbsolute(cmd.directory)
-            ? cmd.directory
-            : path.join(workspaceRoot, cmd.directory);
-
-          if (!fs.existsSync(cmdDir)) {
-            this.appendLine(`警告: 目录不存在 ${cmdDir}`);
-            continue;
-          }
-
-          this.appendLine(`\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`);
-
-          const { execSync } = require("child_process");
-          const result = execSync(cmd.command, {
-            cwd: cmdDir,
-            encoding: "utf8",
-            stdio: ["inherit", "pipe", "pipe"],
-          });
-
-          this.appendLine("命令输出:");
-          this.appendLine(result);
-          this.appendLine("✅ 命令执行成功");
-        } catch (error) {
-          this.appendLine(
-            `❌ 命令执行失败: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      }
+      throw error;
     }
-
-    this.appendLine(`[自动同步] ${repo.name} 同步完成`);
   }
 }
