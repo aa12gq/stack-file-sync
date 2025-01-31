@@ -1,14 +1,117 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
     <defs>
-        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+        <!-- 主渐变 - 更高级的渐变配色 -->
+        <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
         </linearGradient>
+        
+        <!-- 文件渐变 -->
+        <linearGradient id="fileGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.95" />
+            <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0.85" />
+        </linearGradient>
+
+        <!-- 文件折角渐变 -->
+        <linearGradient id="cornerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.4" />
+            <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0.1" />
+        </linearGradient>
+
+        <!-- 发光效果 -->
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+            <feComposite in="blur" in2="SourceGraphic" operator="over"/>
+        </filter>
+
+        <!-- 主阴影 -->
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+            <feOffset dx="0" dy="4"/>
+            <feComponentTransfer>
+                <feFuncA type="linear" slope="0.3"/>
+            </feComponentTransfer>
+            <feMerge>
+                <feMergeNode/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+
+        <!-- 文件内容线条 -->
+        <pattern id="fileLines" width="20" height="4" patternUnits="userSpaceOnUse">
+            <rect width="12" height="1" fill="#FFFFFF" opacity="0.5"/>
+        </pattern>
+
+        <!-- 代码图案 -->
+        <pattern id="codePattern" width="20" height="12" patternUnits="userSpaceOnUse">
+            <text x="2" y="8" fill="#FFFFFF" opacity="0.6" font-family="monospace" font-size="8">{}</text>
+            <text x="10" y="8" fill="#FFFFFF" opacity="0.4" font-family="monospace" font-size="8">()</text>
+        </pattern>
     </defs>
-    <rect x="14" y="24" width="100" height="80" rx="8" fill="url(#grad1)"/>
-    <path d="M64 44v16M52 52l12 8 12-8M64 84v-16M52 76l12-8 12 8" 
-          stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="34" y="44" width="60" height="40" rx="4" 
-          fill="none" stroke="white" stroke-width="4"/>
+
+    <!-- 背景圆形 -->
+    <circle cx="64" cy="64" r="56" fill="url(#primaryGradient)" filter="url(#shadow)"/>
+    
+    <!-- 文件图标组 -->
+    <g>
+        <!-- 左侧文件 -->
+        <g transform="translate(32, 32) scale(0.9)">
+            <!-- 文件主体 -->
+            <path d="M0 0h20l10 10v30H0V0z" fill="url(#fileGradient)" filter="url(#glow)"/>
+            <!-- 折角 -->
+            <path d="M20 0v10h10L20 0z" fill="url(#cornerGradient)"/>
+            <path d="M20 0v10h10" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+            <!-- 文件内容线条 -->
+            <path d="M4 16h12M4 20h8M4 24h10" stroke="#8B5CF6" stroke-width="1" opacity="0.3"/>
+            <!-- 代码符号 -->
+            <path d="M4 28l4 4-4 4M16 28l-4 4 4 4" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </g>
+        
+        <!-- 右侧文件 -->
+        <g transform="translate(76, 56) scale(0.9)">
+            <!-- 文件主体 -->
+            <path d="M0 0h20l10 10v30H0V0z" fill="url(#fileGradient)" filter="url(#glow)"/>
+            <!-- 折角 -->
+            <path d="M20 0v10h10L20 0z" fill="url(#cornerGradient)"/>
+            <path d="M20 0v10h10" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+            <!-- 文件内容线条 -->
+            <path d="M4 16h12M4 20h8M4 24h10" stroke="#8B5CF6" stroke-width="1" opacity="0.3"/>
+            <!-- 代码符号 -->
+            <path d="M4 28l4 4-4 4M16 28l-4 4 4 4" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </g>
+    </g>
+
+    <!-- 同步箭头组 -->
+    <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" filter="url(#glow)">
+        <!-- 上半部分箭头 -->
+        <path d="M64 44c-12 0-20 4-20 12s8 12 20 12h24" stroke-width="3">
+            <animate attributeName="opacity" values="0.9;0.6;0.9" dur="2s" repeatCount="indefinite"/>
+        </path>
+        <path d="M82 62l6 6-6 6" stroke-width="3">
+            <animate attributeName="opacity" values="0.9;0.6;0.9" dur="2s" repeatCount="indefinite"/>
+        </path>
+
+        <!-- 下半部分箭头 -->
+        <path d="M64 84c12 0 20-4 20-12s-8-12-20-12H40" stroke-width="3">
+            <animate attributeName="opacity" values="0.6;0.9;0.6" dur="2s" repeatCount="indefinite"/>
+        </path>
+        <path d="M46 54l-6 6 6 6" stroke-width="3">
+            <animate attributeName="opacity" values="0.6;0.9;0.6" dur="2s" repeatCount="indefinite"/>
+        </path>
+    </g>
+
+    <!-- 装饰光点 -->
+    <g class="particles" filter="url(#glow)">
+        <circle cx="88" cy="36" r="1.2" fill="#FFFFFF">
+            <animate attributeName="opacity" values="0.8;0.3;0.8" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="36" cy="88" r="1" fill="#FFFFFF">
+            <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="92" cy="64" r="0.8" fill="#FFFFFF">
+            <animate attributeName="opacity" values="0.5;0.2;0.5" dur="4s" repeatCount="indefinite"/>
+        </circle>
+    </g>
 </svg> 
