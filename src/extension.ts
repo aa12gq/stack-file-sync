@@ -6,6 +6,7 @@ import { AutoSyncManager } from "./providers/AutoSyncManager";
 import { RepositoriesViewProvider } from "./providers/RepositoriesViewProvider";
 import { LogsViewProvider } from "./providers/LogsViewProvider";
 import { ConfigViewProvider } from "./providers/ConfigViewProvider";
+import { ConfigWizardProvider } from "./providers/ConfigWizardProvider";
 import { HistoryManager } from "./providers/HistoryManager";
 import { HistoryViewProvider } from "./providers/HistoryViewProvider";
 import { HistoryTreeItem } from "./types/history";
@@ -400,5 +401,61 @@ export function activate(context: vscode.ExtensionContext) {
         historyViewProvider.refresh();
       }
     })
+  );
+
+  // 注册配置向导视图
+  const configWizardProvider = new ConfigWizardProvider(context.extensionUri);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      "stack-file-sync-config-wizard",
+      configWizardProvider
+    )
+  );
+
+  // 注册打开配置向导的命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand("stack-file-sync.openConfigWizard", () => {
+      vscode.commands.executeCommand("stack-file-sync-config-wizard.focus");
+    })
+  );
+
+  // 注册删除仓库命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "stack-file-sync.deleteRepository",
+      async (repo: Repository) => {
+        const answer = await vscode.window.showWarningMessage(
+          `确定要删除仓库 "${repo.name}" 吗？`,
+          { modal: true },
+          "确定",
+          "取消"
+        );
+
+        if (answer === "确定") {
+          const config = vscode.workspace.getConfiguration("stackFileSync");
+          const repositories: Repository[] = config.get("repositories") || [];
+          const index = repositories.findIndex((r) => r.name === repo.name);
+
+          if (index !== -1) {
+            repositories.splice(index, 1);
+            await config.update(
+              "repositories",
+              repositories,
+              vscode.ConfigurationTarget.Global
+            );
+            repositoriesProvider.refresh();
+            outputChannel.appendLine(`\n[配置] 已删除仓库 ${repo.name}`);
+
+            // 如果仓库开启了自动同步，需要重启自动同步管理器
+            if (repo.autoSync?.enabled) {
+              outputChannel.appendLine("[自动同步] 正在重新启动自动同步...");
+              autoSyncManager.startAll();
+            }
+
+            vscode.window.showInformationMessage(`已删除仓库 "${repo.name}"`);
+          }
+        }
+      }
+    )
   );
 }
