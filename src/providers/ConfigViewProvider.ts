@@ -28,6 +28,9 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
         case "requestConfig":
           await this.sendCurrentConfig();
           break;
+        case "browseNetworkPath":
+          await this.browseNetworkPath(message.repoIndex);
+          break;
       }
     });
   }
@@ -283,6 +286,27 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
             text-overflow: ellipsis;
             white-space: nowrap;
           }
+          .tips {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--vscode-textBlockQuote-background);
+            border-left: 4px solid var(--vscode-textBlockQuote-border);
+          }
+          .tip-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+          }
+          .tip-section {
+            margin-top: 8px;
+          }
+          .tip-title {
+            color: var(--vscode-textLink-foreground);
+            margin-bottom: 4px;
+          }
+          .tip-section div {
+            margin-left: 8px;
+            line-height: 1.4;
+          }
         </style>
         <link rel="stylesheet" href="${webview.asWebviewUri(
           vscode.Uri.joinPath(
@@ -453,6 +477,46 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
                     </div>
 
                     <div class="section">
+                      <div class="section-title">内网同步设置</div>
+                      <div class="form-group">
+                        <div class="checkbox-wrapper">
+                          <input type="checkbox" id="internalSync\${index}" 
+                            \${repo.internalSync?.enabled ? 'checked' : ''} 
+                            onchange="updateInternalSync(\${index}, this.checked)">
+                          <label for="internalSync\${index}">启用内网同步</label>
+                        </div>
+                      </div>
+                      \${repo.internalSync?.enabled ? \`
+                        <div class="form-group">
+                          <label>内网路径</label>
+                          <div class="directory-group">
+                            <input type="text" value="\${repo.internalSync?.networkPath || ''}" 
+                              placeholder="填写目标目录的完整路径"
+                              title="如果是本机文件，直接填写目标目录的完整路径"
+                              onchange="updateNetworkPath(\${index}, this.value)">
+                            <button onclick="browseNetworkPath(\${index})">
+                              <i class="codicon codicon-folder-opened"></i>
+                              浏览
+                            </button>
+                          </div>
+                          <div class="tips">
+                            <div class="tip-header">如何填写内网路径：</div>
+                            <div class="tip-section">
+                              <div class="tip-title">同步本机文件：</div>
+                              <div>- 直接填写目标目录的完整路径</div>
+                              <div>- 例如：/Users/aa12/BackendProjects/yug-server/proto/user</div>
+                            </div>
+                            <div class="tip-section">
+                              <div class="tip-title">同步其他机器文件：</div>
+                              <div>- 需要使用 //IP地址 开头的网络路径</div>
+                              <div>- 例如：//192.168.1.100/Users/username/project/proto</div>
+                            </div>
+                          </div>
+                        </div>
+                      \` : ''}
+                    </div>
+
+                    <div class="section">
                       <div class="section-title">同步后执行命令</div>
                       <div class="form-group">
                         <div class="pattern-list">
@@ -575,6 +639,27 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
             repositories[index].postSyncCommands[cmdIndex].command = value;
           }
 
+          function updateInternalSync(index, enabled) {
+            repositories[index].internalSync = repositories[index].internalSync || {};
+            repositories[index].internalSync.enabled = enabled;
+            if (!enabled) {
+              repositories[index].internalSync.networkPath = '';
+            }
+            renderRepositories();
+          }
+
+          function updateNetworkPath(index, path) {
+            repositories[index].internalSync = repositories[index].internalSync || {};
+            repositories[index].internalSync.networkPath = path;
+          }
+
+          function browseNetworkPath(index) {
+            vscode.postMessage({
+              command: 'browseNetworkPath',
+              repoIndex: index
+            });
+          }
+
           function saveConfig() {
             vscode.postMessage({
               command: 'saveConfig',
@@ -585,5 +670,24 @@ export class ConfigViewProvider implements vscode.WebviewViewProvider {
       </body>
       </html>
     `;
+  }
+
+  private async browseNetworkPath(repoIndex: number) {
+    const uri = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      title: "选择内网共享目录",
+    });
+
+    if (uri && uri[0]) {
+      if (this._view) {
+        this._view.webview.postMessage({
+          command: "updateNetworkPath",
+          repoIndex,
+          path: uri[0].fsPath,
+        });
+      }
+    }
   }
 }

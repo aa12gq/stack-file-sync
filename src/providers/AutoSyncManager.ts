@@ -233,16 +233,23 @@ export class AutoSyncManager {
 
   // 检查并执行同步
   public async checkAndSync(repo: Repository) {
-    this.appendLine(`\n[自动同步] 检查 ${repo.name} 的更新...`);
-
-    // 创建临时目录
-    const tempDir = path.join(
-      os.tmpdir(),
-      `stack-file-sync-auto-${Date.now()}`
-    );
-    fs.mkdirSync(tempDir, { recursive: true });
-
     try {
+      // 如果启用了内网同步
+      if (repo.internalSync?.enabled) {
+        await this.syncFromInternalNetwork(repo);
+        return;
+      }
+
+      // 原有的 Git 仓库同步逻辑
+      this.appendLine(`\n[自动同步] 检查 ${repo.name} 的更新...`);
+
+      // 创建临时目录
+      const tempDir = path.join(
+        os.tmpdir(),
+        `stack-file-sync-auto-${Date.now()}`
+      );
+      fs.mkdirSync(tempDir, { recursive: true });
+
       const git = simpleGit();
 
       // 克隆仓库
@@ -313,17 +320,8 @@ export class AutoSyncManager {
       } else {
         this.appendLine(`[自动同步] ${repo.name} 没有检测到更新`);
       }
-    } finally {
-      // 清理临时目录
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (error) {
-        this.appendLine(
-          `[自动同步] 清理临时目录失败: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -552,5 +550,187 @@ export class AutoSyncManager {
 
       throw error;
     }
+  }
+
+  // 添加内网同步方法
+  private async syncFromInternalNetwork(repo: Repository) {
+    this.appendLine(
+      `\n[内网同步] 开始从 ${repo.internalSync!.networkPath} 同步文件...`
+    );
+    this.syncedFiles = [];
+    const startTime = Date.now();
+
+    try {
+      if (!vscode.workspace.workspaceFolders?.length) {
+        throw new Error("请先打开一个工作区文件夹");
+      }
+
+      let sourcePath = repo.internalSync!.networkPath;
+      const isWindows = process.platform === "win32";
+
+      // 如果路径以 // 开头，说明是网络路径
+      if (sourcePath.startsWith("//")) {
+        if (!isWindows) {
+          // 对于 Mac/Linux 的网络路径，保持 //host/path 格式，但清理多余的斜杠
+          sourcePath = sourcePath
+            .replace(/\/\//g, "//")
+            .replace(/\/\/\//g, "//");
+        }
+      }
+      // 否则就是本地路径，保持原样
+
+      const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+      const targetDir = path.isAbsolute(repo.targetDirectory)
+        ? repo.targetDirectory
+        : path.join(workspaceRoot, repo.targetDirectory);
+
+      // 检查源路径是否可访问
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error(`无法访问内网路径: ${sourcePath}`);
+      }
+
+      // 确保目标目录存在
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      // 重置进度
+      this.resetProgress();
+
+      // 获取要同步的文件列表
+      const files = await this.getInternalFiles(sourcePath, repo);
+      this.totalFiles = files.length;
+
+      this.appendLine(`[内网同步] 找到 ${files.length} 个文件需要同步`);
+
+      // 同步文件
+      for (const file of files) {
+        const sourceFilePath = path.join(sourcePath, file);
+        const targetFilePath = path.join(targetDir, file);
+        const targetFileDir = path.dirname(targetFilePath);
+
+        // 确保目标文件夹存在
+        if (!fs.existsSync(targetFileDir)) {
+          fs.mkdirSync(targetFileDir, { recursive: true });
+        }
+
+        // 复制文件
+        fs.copyFileSync(sourceFilePath, targetFilePath);
+        this.processedFiles++;
+        this.syncedFiles.push(file);
+
+        // 更新进度
+        const progressPercent = Math.round(
+          (this.processedFiles / this.totalFiles) * 100
+        );
+        this.updateProgress(
+          `正在同步: ${file} (${this.processedFiles}/${this.totalFiles})`,
+          100 / this.totalFiles
+        );
+
+        this.appendLine(`[内网同步] 更新文件: ${file}`);
+      }
+
+      // 执行后处理命令
+      if (repo.postSyncCommands?.length) {
+        this.appendLine("\n[内网同步] 执行后处理命令:");
+        for (const cmd of repo.postSyncCommands) {
+          try {
+            const cmdDir = path.isAbsolute(cmd.directory)
+              ? cmd.directory
+              : path.join(workspaceRoot, cmd.directory);
+
+            if (!fs.existsSync(cmdDir)) {
+              this.appendLine(`警告: 目录不存在 ${cmdDir}`);
+              continue;
+            }
+
+            this.appendLine(`\n在目录 ${cmdDir} 中执行命令: ${cmd.command}`);
+
+            const { execSync } = require("child_process");
+            const result = execSync(cmd.command, {
+              cwd: cmdDir,
+              encoding: "utf8",
+              stdio: ["inherit", "pipe", "pipe"],
+            });
+
+            this.appendLine("命令输出:");
+            this.appendLine(result);
+            this.appendLine("✅ 命令执行成功");
+          } catch (error) {
+            this.appendLine(
+              `❌ 命令执行失败: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+        }
+      }
+
+      // 记录成功的同步历史
+      await this.historyManager.addHistoryItem({
+        repository: repo.name,
+        branch: "internal",
+        files: this.syncedFiles,
+        status: "success",
+        duration: Date.now() - startTime,
+        syncType: repo.autoSync?.enabled ? "auto" : "manual",
+      });
+
+      this.appendLine(`[内网同步] ${repo.name} 同步完成`);
+    } catch (error) {
+      // 记录失败的同步历史
+      await this.historyManager.addHistoryItem({
+        repository: repo.name,
+        branch: "internal",
+        files: this.syncedFiles,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+        duration: Date.now() - startTime,
+        syncType: repo.autoSync?.enabled ? "auto" : "manual",
+      });
+
+      throw error;
+    }
+  }
+
+  // 获取内网文件列表
+  private async getInternalFiles(
+    sourcePath: string,
+    repo: Repository
+  ): Promise<string[]> {
+    const files: string[] = [];
+    const filePatterns = repo.filePatterns || ["**/*.proto"];
+    const excludePatterns = repo.excludePatterns || ["**/backend/**"];
+
+    // 递归获取文件列表
+    const getFiles = (dir: string, baseDir: string) => {
+      const items = fs.readdirSync(dir);
+
+      for (const item of items) {
+        const fullPath = path.join(dir, item);
+        const stat = fs.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          getFiles(fullPath, baseDir);
+        } else {
+          const relativePath = path.relative(baseDir, fullPath);
+          // 检查文件是否匹配模式
+          const isMatch = filePatterns.some((pattern) =>
+            new Minimatch(pattern, { dot: true }).match(relativePath)
+          );
+          const isExcluded = excludePatterns.some((pattern) =>
+            new Minimatch(pattern, { dot: true }).match(relativePath)
+          );
+
+          if (isMatch && !isExcluded) {
+            files.push(relativePath);
+          }
+        }
+      }
+    };
+
+    getFiles(sourcePath, sourcePath);
+    return files;
   }
 }

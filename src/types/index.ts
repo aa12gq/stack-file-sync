@@ -17,6 +17,12 @@ export interface Repository {
   postSyncCommands?: PostSyncCommand[];
   autoSync?: AutoSyncConfig;
   selectedFiles?: string[];
+
+  // 添加内网同步配置
+  internalSync?: {
+    enabled: boolean;
+    networkPath: string; // 如: "\\192.168.1.100\project\proto" 或 "//192.168.1.100/project/proto"
+  };
 }
 
 export interface PostSyncCommand {
